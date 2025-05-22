@@ -1,3 +1,15 @@
+### Running
+
+I updated the Dockerfile and used compose to bind mounts to map host directories into the container, enabling the container to read from and write to the host file system. Instead of just copying them into the container. Just made it a bit easier to work on.
+
+Use:
+
+- `docker compose up -d`
+
+Or you can uncomment the line in the Dockerfile, both should work.
+
+---
+
 # Technical assesment
 
 This file contains the instructions for the Qtx/Chisl technical assesment.
@@ -58,14 +70,3 @@ The assessment must be completed in a Docker contrainer to ensure that the envri
 
 - The `Python.py` file, found in the `Task_2` folder, contains the python related questions in the assessment. **This is the only Task 2 file that will be considered in the grading of your assessment.**
 - The `.csv` files located in the `Task_2/data` folder contain the datasets required to answer the python questions.
-
-
-### Running
-
-I updated the Dockerfile and used compose to bind mounts to map host directories into the container, enabling the container to read from and write to the host file system. Instead of just copying them into the container. Just made it a bit easier to work on.
-
-Use:
-
-- `docker compose up -d`
-
-Or you can uncomment the line in the Dockerfile, both should work.
