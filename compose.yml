@@ -1,0 +1,9 @@
+services:
+  assesement:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./Task_1:/app/Task_1
+      - ./Task_2:/app/Task_2
