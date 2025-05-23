@@ -1,22 +1,10 @@
-### Running
-
-I updated the Dockerfile and used compose to bind mounts to map host directories into the container, enabling the container to read from and write to the host file system. Instead of just copying them into the container. Just made it a bit easier to work on.
-
-Use:
-
-- `docker compose up -d`
-
-Or you can uncomment the line in the Dockerfile, both should work.
-
----
-
 # Technical assesment
 
 This file contains the instructions for the Qtx/Chisl technical assesment.
 It consists of two distinct tasks, these being:
 
 - [X] SQL (Task 1)
-- [ ] Python (Task 2)
+- [X] Python (Task 2)
 
 ## Submission Guidelines
 
