@@ -61,7 +61,13 @@ def question_1():
     """
 
     # SQL Explanation:
-
+    # This query calculates the average income per CustomerClass by joining customer and credit data.
+    # The subquery `c` first selects distinct combinations of customer IDs and their income from the customers table.
+    # The subquery `cr` selects distinct combinations of customer IDs and their Customer Class from the credit table.
+    # These two subqueries are joined on customerid (c.customerid = cr.customerid) to align each customer's income with their CustomerClass.
+    # The result is then grouped by Customer Class, and the average income is calculated using AVG().
+    # The final average is rounded to two decimal places for some readability using ROUND_,2).
+    
     qry = """
         SELECT 
             cr.customerclass, 
@@ -86,7 +92,14 @@ def question_2():
     """
 
     # SQL Explanation:
-    
+    # This query returns the number of rejected loan applications per province, using the abbreviated province format found in the customers table.
+    # The subquery `sub` selects filters out duplicate customers based on customer ID and standardizes the region field using a CASE statement to return 
+    # only province abbreviations.
+    # The next subquery `l` selects distinct combinations customer IDs and their approval status from the loans table.
+    # These two subqueries are joined (using INNER JOIN) on customer ID (sub.customerid = l.customerid).
+    # This is to associate each customer's region with their loan application status.
+    # The query then filters for records where the approval status is 'Rejected' using (WHERE l.approvalstatus = 'Rejected')
+    # The results are then grouped by province (`short_region`) and counted using COUNT(*)
 
     qry = """
         SELECT sub.short_region AS Province, COUNT(*) AS RejectedApplications
@@ -126,13 +139,27 @@ def question_3():
     Do not return the new table, just create it.
     """
 
-    ## I am assuming you meant CREATE instead of INSERT
-
+    # SQL Explanation:
+    # This query creates a new table called `financing` and populates it with combined data from the `customers`, `loans`, and `credit` tables using INSERT
+    # First we create the `financing` table with specified column names and data types. I used the same ones used to create the tables in database_load.py
+    # After the table is created, data is inserted using the INSERT and SELECT statements that:
+    # Joins the customers, loans, and credit tables on customer ID.
+    
     qry = """
-        -- Drop existing table if it exists (useful during testing)
+        -- Drop existing table if it exists (useful for testing)
         DROP TABLE IF EXISTS financing;
-        
-        CREATE TABLE financing AS
+
+        CREATE TABLE financing (
+            customerid INTEGER,
+            income INTEGER,
+            loanamount INTEGER,
+            loanterm INTEGER,
+            interestrate FLOAT,
+            approvalstatus STRING,
+            creditscore INTEGER
+        );
+
+        INSERT INTO financing (customerid, income, loanamount, loanterm, interestrate, approvalstatus, creditscore)
         SELECT DISTINCT
             cust.customerid,
             cust.income,
@@ -145,6 +172,20 @@ def question_3():
         INNER JOIN loans loan ON loan.customerid = cust.customerid
         INNER JOIN credit cred ON cred.customerid = cust.customerid;
     """
+
+    # Version using CREATE TABLE _ AS SELECT
+    # CREATE TABLE financing AS
+    # SELECT DISTINCT
+    #     cust.customerid,
+    #     cust.income,
+    #     loan.loanamount,
+    #     loan.loanterm,
+    #     loan.interestrate,
+    #     loan.approvalstatus,
+    #     cred.creditscore
+    # FROM customers cust
+    # INNER JOIN loans loan ON loan.customerid = cust.customerid
+    # INNER JOIN credit cred ON cred.customerid = cust.customerid;
 
     return qry
 
@@ -162,11 +203,22 @@ def question_4():
     Hint: there should be 12x CustomerID = 1. --> Clued me in to use CROSS JOIN on months :)
     """
 
+    # SQL Explanation:
+    # This query creates a new table called `timeline` that summarizes the number and the total value of repayments made by each customer per month.
+    # First a CROSS JOIN is used between a list of unique customerids and the months table, so we have a row for each customer and a month of the year. 12x customerid
+    # Next a LEFT JOIN is then used with a filtered subset from the repayments` table where:
+    #     - There are only repayments between 6:00 AM and 6:00 PM (London time) are included (Time zones are shifted using AT TIME ZONE).
+    #     - The month is extracted from the repaymentdate using STRFTIME('%m', repaymentdate)
+    #
+    # The results are grouped by customer and month and ordered for easy reading.
+    # COALESCE is used to replace null totals in AmountTotal with 0.
+
     # I believe duckdb is postgres like with IANA timezones: Europe/London instead of 'GMT Standard Time' (SQLServer)
     # Both seemed to work, so I went with Europe/London
+    
     qry = """
         -- Drop existing table if it exists (useful during testing)
-        DROP TABLE IF EXISTS financing;
+        DROP TABLE IF EXISTS timeline;
         
         CREATE TABLE timeline AS
         SELECT
@@ -206,6 +258,17 @@ def question_5():
 
     Hint: there should be 1x CustomerID = 1
     """
+
+    # SQL Explanation:
+    # This query pivots the created timeline table using conditional aggregation to create a summary where each row represents a customer (customerid),
+    # and each month's repayment data is split into separate columns. Where each month has a column for number of repayments and a column for the months total.
+
+    # I am assuming that I shouldnt take year into account much like the previous question.
+    
+    # The CASE WHEN statements are used to accomplish this by filtering rows for each specific month, and then using COUNT and SUM to calculate the number and 
+    # sum.
+    #
+    # This is then grouped by customerid.
 
     qry = """
         SELECT
@@ -256,31 +319,58 @@ def question_6():
 
     Also return a result set for this table (ie SELECT * FROM corrected_customers)
     """
-    
 
+    # SQL Explanation:
+    # This query creates a new corrected_customers table by realinging the women and men from the customers table using "circular" LAG (achieved circular like 
+    # behaviour using CASE WHEN for the first two rows).
+    #
+    # First I seperated the table into male and female using filters and then rejoined them using union. (rejoined - didnt use actual joins)
+    #
+    # VERY IMPORTANT NOTE:
+    # Through Exploratory Data Analysis (in EDA.ipynb) I confirmed that duplicate rows (with the same customerid) were consistent accross all columns (had 
+    # duplicate values accross all columns). This means that there were likey no duplicates when the missalignment occured since age is consistent accross 
+    # duplicates. Therefore duplicates must be removed for re alignment. Which I have done so with SELECT DISTINCT.
+    # 
+    # I then used row number assigned according to customer id since the shift occured in relation to customerid. This will help to reference the first two 
+    # rows. I also used COUNT(*) OVER () AS total to reference the last two rows.
+    #
+    # I then re-asigned the age as corrected age using LAG(_,2) and used CASE WHEN for the first two rows using row_number = 1 or 2 and then reasigned them 
+    # with offset total to get the second last and last age. Thus circular LAG.
+    #
+    # Finally I used UNION to add male and female customers back together to form a new table corrected_customers.
+
+    # Optimization Note: I am pretty sure this can be optimized but I am not sure how? I would try but I want to get this to you sooner!
     qry = """
         DROP TABLE IF EXISTS corrected_customers;
     
         CREATE TABLE corrected_customers AS
         WITH men AS (
-            SELECT 
+            SELECT
                 customerid, 
                 age, 
                 gender,
                 ROW_NUMBER() OVER (ORDER BY customerid) AS rn,
                 COUNT(*) OVER () AS total
-            FROM customers
-            WHERE gender = 'Male'
+            FROM (
+                SELECT DISTINCT
+                    *
+                FROM customers
+                WHERE gender = 'Male'
+            )
         ),
         women AS (
-            SELECT 
+            SELECT DISTINCT
                 customerid, 
                 age, 
                 gender,
                 ROW_NUMBER() OVER (ORDER BY customerid) AS rn,
                 COUNT(*) OVER () AS total
-            FROM customers
-            WHERE gender = 'Female'
+            FROM (
+                SELECT DISTINCT
+                    *
+                FROM customers
+                WHERE gender = 'Female'
+            )
         )
         SELECT
             n.customerid,
@@ -289,7 +379,7 @@ def question_6():
                 LAG(n.age, 2) OVER (ORDER BY n.customerid),
                 CASE
                     WHEN n.rn = 1 THEN (SELECT m.age FROM men m WHERE m.rn = m.total -1)
-                    WHEN n.rn = 2 THEN (SELECT m.age FROM men m WHERE m.rn = m.total -2)
+                    WHEN n.rn = 2 THEN (SELECT m.age FROM men m WHERE m.rn = m.total)
                 END
             ) AS CorrectedAge,
             n.gender
@@ -301,14 +391,13 @@ def question_6():
             COALESCE(
                 LAG(w.age, 2) OVER (ORDER BY w.customerid),
                 CASE
-                    WHEN w.rn = 1 THEN (SELECT m.age FROM women m WHERE m.rn = m.total -1)
-                    WHEN w.rn = 2 THEN (SELECT m.age FROM women m WHERE m.rn = m.total -2)
+                    WHEN w.rn = 1 THEN (SELECT wa.age FROM women wa WHERE wa.rn = wa.total -1)
+                    WHEN w.rn = 2 THEN (SELECT wa.age FROM women wa WHERE wa.rn = wa.total)
                 END
             ) AS CorrectedAge,
             w.gender
         FROM women w
         ORDER BY customerid;
-        
         SELECT * FROM corrected_customers;
     """
 
@@ -331,8 +420,91 @@ def question_7():
     Return columns: `CustomerID`, `Age`, `CorrectedAge`, `Gender`, `AgeCategory`, `Rank`
     """
 
+    # I am assuming by create a column you meant altering the table with a new column, but I included a second version where I add it as part of a select query
+
+    # SQL Explanation:
+    # This query alters the corrected customers table by adding a new column age category that assigns a category based on corrected age range.
+
+    # The second part of this query then assigns Rank using DENSE_RANK where there is no skip even when there are ties. The DENSE Rank is applied over a 
+    # Partion of Age Category and ordered by the total number of repayments made by a customer according to the loan repayments table.
+
+    # The total number of repayments is calculated similarly to question 4 but there is no GROUPING by months and instead just totals all payments.
+
+    # Note: I assigned datatype based on those used in database_load.py
     qry = """
+        ALTER TABLE corrected_customers
+        DROP COLUMN IF EXISTS AgeCategory;
+        
+        ALTER TABLE corrected_customers
+        ADD COLUMN AgeCategory STRING;
+        
+        UPDATE corrected_customers
+        SET AgeCategory = CASE
+                            WHEN CorrectedAge < 20 THEN 'Teen'
+                            WHEN CorrectedAge < 30 THEN 'Young Adult'
+                            WHEN CorrectedAge < 60 THEN 'Adult'
+                            ELSE 'Pensioner'
+                        END;
     
+        SELECT
+            customerid,
+            age,
+            correctedage,
+            gender,
+            agecategory,
+            DENSE_RANK() OVER (PARTITION BY agecategory ORDER BY numberofrepayments) AS Rank
+        FROM (
+            SELECT
+                c.customerid,
+                c.gender,
+                c.age,
+                c.correctedage,
+                c.agecategory,
+                COUNT(r.repaymentid) AS NumberOfRepayments
+            FROM corrected_customers c
+            LEFT JOIN (
+                SELECT repaymentid, customerid
+                FROM repayments
+            ) r ON c.customerid = r.customerid
+            GROUP BY
+                c.customerid,
+                c.age,
+                c.gender,
+                c.correctedage,
+                c.agecategory
+        )
     """
+
+    # Version where I include Age Category Logic as part of the SELECT query
+    # SELECT
+    #     customerid,
+    #     age,
+    #     correctedage,
+    #     gender,
+    #     CASE
+    #         WHEN CorrectedAge < 20 THEN 'Teen'
+    #         WHEN CorrectedAge < 30 THEN 'Young Adult'
+    #         WHEN CorrectedAge < 60 THEN 'Adult'
+    #         ELSE 'Pensioner'
+    #     END AS AgeCategory
+    #     DENSE_RANK() OVER (PARTITION BY agecategory ORDER BY numberofrepayments) AS Rank
+    # FROM (
+    #     SELECT
+    #         c.customerid,
+    #         c.gender,
+    #         c.age,
+    #         c.correctedage,
+    #         COUNT(r.repaymentid) AS NumberOfRepayments
+    #     FROM corrected_customers c
+    #     LEFT JOIN (
+    #         SELECT repaymentid, customerid
+    #         FROM repayments
+    #     ) r ON c.customerid = r.customerid
+    #     GROUP BY
+    #         c.customerid,
+    #         c.age,
+    #         c.gender,
+    #         c.correctedage
+    # )
 
     return qry

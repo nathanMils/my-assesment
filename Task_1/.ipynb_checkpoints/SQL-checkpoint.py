@@ -61,10 +61,9 @@ def question_1():
     """
 
     # SQL Explanation:
-    # First the sub query identifies all custdomer ids that appear more than once in the table using Aggregation GROUP BY and HAVING COUNT(*) > 1.
-    # The outer query then retrieves the DISTINCT records (name, surname, customerid) correspondingto those duplicated CustomerIDs to avoid redundant rows 
-    # in the result.
-
+    # This query finds the name, surname and customer ids for all the duplicated customer ids in the customer table.
+    # The inner query filters for customer entries in the `customers` table based on the `CustomerId` field using HAVING COUNT(*) > 1.
+    # The outer query then returns the distinct `name`, `surname`, and `customerid` for any CustomerID that appears more than once in the table.
 
     qry = """
         SELECT DISTINCT name, surname, customerid
@@ -87,15 +86,19 @@ def question_2():
     """
 
     # SQL Explanation:
-    # Filters the dataset to include only rows where the gender is 'Female'. (Confirmed categorical value Range [Female, Male] i.e. no values outside this set)
-    # It then selects the relevant columns: name, surname, and income.
-    # Then using DISTINCT to ensure that the rows dont take the duplicates. (Which there are duplicates - confirmed through EDA)
-    # The results are then ordered by income in descending order with ORDER BY DESC.
+    # This query retrieves the Name, Surname, and Income of all female customers in the customers table.
+    # The inner query first filters for all 'Female' customers using WHERE gender = 'Female'.
+    # The inner query then removes duplicate entries based on the combination of customerid, name, surname, and income using DISTINCT.
+    # The outer query then returns the name, surname and income in decending order of income.
+    
 
     qry = """
-        SELECT DISTINCT name, surname, income
-        FROM customers
-        WHERE gender = 'Female'
+        SELECT name, surname, income
+        FROM (
+            SELECT DISTINCT customerid, name, surname, income
+            FROM customers
+            WHERE gender = 'Female'
+        )
         ORDER BY income DESC;
     """
 
@@ -110,13 +113,23 @@ def question_3():
     """
 
     # SQL Explanation:
-    # First the inner subquery selects DISTINCT combinations of customerid, approvalstatus, and loanterm. This ensures that each customer is counted only once, 
-    # effectively removing duplicate loan records.
-    # The outer query then groups the distinct loans by the `loanterm`s.
-    # For each loan term, it counts the number of approved loans using a conditional COUNT with CASE.
-    # It divides that count by the total number of loans for the term and multiplies by 100 to get the percentage.
-    # ROUND is used to format the result to 2 decimal places for clarity and readability.
-
+    # This query calculates the percentage of approved loans for each loan term.
+    #
+    # Thought process:
+    # - There is only one loan per customer ID in theory, but since the dataset does not have a unique loan ID, it is possible that some loan records may be 
+    # duplicated.
+    # - To avoid counting duplicates, the inner query selects DISTINCT combinations of customerid, loanamount, loanterm, interestrate, and approvalstatus.
+    # - This is based on the assumption that if multiple loans have the same customer ID and identical loan details,
+    #   they are duplicates rather than separate loans. (Would otherwise use a unique loan id to identify actual duplicates rather than a combination of the 
+    # details)
+    #
+    # First the inner query filters for distinct combinations of customerid,loanamount,loanterm,interestrate and approvalstatus from the loans table.
+    # The outer query then groups these unique loans by loanterm and calculates:
+    # The count of loans approved per term with COUNT(CASE...),
+    # Divided by the total loans per term with COUNT(*)
+    # Multiplied by 100 to get the approval percentage,
+    # Rounded to two decimal places for some readability with ROUND(_,2).
+    
     qry = """
         SELECT 
             loanterm,
@@ -125,7 +138,7 @@ def question_3():
                 2
             ) AS percentage
         FROM (
-            SELECT DISTINCT customerid, approvalstatus, loanterm
+            SELECT DISTINCT customerid,loanamount,loanterm,interestrate,approvalstatus
             FROM loans
         )
         GROUP BY loanterm
@@ -141,11 +154,9 @@ def question_4():
     """
 
     # SQL Explanation:
-    # The inner subquery selects DISTINCT combinations of customerid and customerclass to ensure each customer is counted only once, avoiding duplicates in the 
-    # credit data.
-    # The outer query then groups the data by `CustomerClass`s.
-    # Then counts the number of customers in each class using COUNT(*).
-    # The result includes two columns: `CustomerClass` and the corresponding customer count.
+    # This query counts the number of unique customers in each CustomerClass.
+    # The inner query first selects distinct customer IDs and their associated CustomerClass from the credit table to avoid duplicates,
+    # then groups the results by Customer Class and counts the customers in each group using GROUP BY and COUNT(*).
 
     qry = """
     SELECT customerclass, COUNT(*) as count
