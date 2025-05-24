@@ -6,6 +6,8 @@ To better understand the structure and properties of the dataset for Task 1, I i
 Exclusion of Type Hints:
 Some existing code (e.g., provided methods or base classes) did not include type hints. To ensure consistency and avoid introducing conflicts or stylistic inconsistencies, I chose not to add type annotations to those parts. However, I tried to maintained clear variable naming and inline comments to ensure the logic remains easy to follow.
 
+---
+
 # Technical assesment
 
 This file contains the instructions for the Qtx/Chisl technical assesment.
