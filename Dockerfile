@@ -20,7 +20,8 @@ RUN poetry config virtualenvs.create false \
 
 # I wanted to use volumes instead
 # # Copy the rest of your application
-# COPY . /app
+# COPY . /app # Uncomment if you want to use compose
+COPY . /app
 
 # Expose the port Jupyter will run on
 EXPOSE 8888
